@@ -190,8 +190,7 @@ struct GameView: View {
                             value: "\(game.away.shortName) \(game.away.record ?? "–") vs \(game.home.shortName) \(game.home.record ?? "–")")
             }
             if let venue = game.venueName {
-                var place = venue
-                if let city = game.venueCity { place += " · \(city)" }
+                let place = venue + (game.venueCity.map { " · \($0)" } ?? "")
                 GameInfoRow(icon: "mappin.and.ellipse", title: "Venue", value: place)
             }
             if let broadcast = game.broadcast {

@@ -66,7 +66,7 @@ final class GameViewModel: ObservableObject {
             if case .noGame? = error {
                 errorMessage = nil
             } else {
-                errorMessage = error?.errorDescription ?? error.localizedDescription
+                errorMessage = error?.errorDescription ?? error?.localizedDescription ?? "Unknown error"
             }
         }
     }
