@@ -51,10 +51,12 @@ grep -q "com.apple.widgetkit-extension" "$APPEX/Info.plist" \
   || { echo "✗ appex Info.plist is not a WidgetKit extension" >&2; exit 1; }
 
 # --- sign -------------------------------------------------------------------
+# Note: ldid takes the entitlements path ATTACHED to -S ("-Sent.plist file");
+# a space-separated "-S ent.plist file" makes it read the plist as the Mach-O.
 echo "▸ Signing main binary…"
-"$LDID" -S BillsNow/BillsNow.entitlements "$APP/BillsNow"
+"$LDID" -S"BillsNow/BillsNow.entitlements" "$APP/BillsNow"
 echo "▸ Signing widget extension binary…"
-"$LDID" -S BillsWidget/BillsWidget.entitlements "$APPEX/BillsWidget"
+"$LDID" -S"BillsWidget/BillsWidget.entitlements" "$APPEX/BillsWidget"
 
 # --- verify ----------------------------------------------------------------
 echo "▸ Verifying embedded entitlements:"
