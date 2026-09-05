@@ -144,10 +144,11 @@ public struct Broadcast: Decodable {
         } else {
             market = (try? c.decode(BroadcastMarket.self, forKey: .market))?.type
         }
-        names = try? c.decode([String].self, forKey: .names)
-        if names?.isEmpty != false {
-            names = (try? c.decode(BroadcastMedia.self, forKey: .media))?.shortName.map { [$0] }
+        var decodedNames = try? c.decode([String].self, forKey: .names)
+        if decodedNames?.isEmpty != false {
+            decodedNames = (try? c.decode(BroadcastMedia.self, forKey: .media))?.shortName.map { [$0] }
         }
+        names = decodedNames
     }
 
     private enum CodingKeys: String, CodingKey {
