@@ -12,13 +12,9 @@ import WidgetKit
 
 struct ScoreTimelineProvider: TimelineProvider {
     /// Dedicated short-timeout client so a hung request can never blow the
-    /// widget's execution budget.
+    /// widget's execution budget (also sends the browser-like headers).
     private var client: ESPNClient {
-        let config = URLSessionConfiguration.default
-        config.timeoutIntervalForRequest = 8
-        config.timeoutIntervalForResource = 12
-        config.waitsForConnectivity = false
-        return ESPNClient(session: URLSession(configuration: config))
+        ESPNClient(session: ESPNClient.makeSession(timeout: 6))
     }
 
     // MARK: TimelineProvider

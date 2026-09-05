@@ -234,7 +234,11 @@ private struct WideScoreView: View {
     private var statusMeta: String {
         switch game.state {
         case .live: return game.displayClock
-        case .pre: return "\(game.away.abbreviation) @ \(game.home.abbreviation)"
+        case .pre:
+            if let kickoff = game.kickoff {
+                return GameFormat.shortKickoff.string(from: kickoff).uppercased()
+            }
+            return "UPCOMING"
         case .final: return game.statusDetail.uppercased()
         case .canceled: return "CANCELED"
         }
@@ -264,9 +268,8 @@ private struct WideScoreView: View {
             case .pre:
                 if let odds = game.oddsLine, !odds.isEmpty {
                     Text(odds).font(.caption.weight(.bold)).foregroundColor(WidgetPalette.white.opacity(0.9))
-                }
-                if let kickoff = game.kickoff {
-                    Text(GameFormat.fullKickoff.string(from: kickoff))
+                } else {
+                    Text("Kickoff \(GameFormat.shortKickoff.string(from: game.kickoff ?? Date()))")
                         .font(.caption2)
                         .foregroundColor(WidgetPalette.whiteDim)
                         .lineLimit(1)

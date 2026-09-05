@@ -17,16 +17,34 @@
 import Foundation
 
 public struct ESPNClient {
-    public static let shared = ESPNClient()
+    public static let shared = ESPNClient(session: makeSession(timeout: 30))
 
     private static let primaryHost = "https://site.api.espn.com"
     private static let fallbackHost = "https://site.web.api.espn.com"
     private static let path = "/apis/site/v2/sports/football/nfl"
 
+    /// Browser-like headers: some networks / WAFs refuse requests that don't
+    /// carry a recognizable User-Agent.
+    private static let headers = [
+        "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 15_8 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.8 Mobile/15E148 Safari/604.1",
+        "Accept": "application/json",
+    ]
+
+    /// Session factory shared by the app (30 s) and the widget (short, so a
+    /// hung request can never blow the widget's execution budget).
+    public static func makeSession(timeout: TimeInterval) -> URLSession {
+        let config = URLSessionConfiguration.default
+        config.timeoutIntervalForRequest = timeout
+        config.timeoutIntervalForResource = timeout * 1.5
+        config.httpAdditionalHeaders = headers
+        config.requestCachePolicy = .reloadIgnoringLocalCacheData
+        return URLSession(configuration: config)
+    }
+
     private let session: URLSession
 
-    public init(session: URLSession = .shared) {
-        self.session = session
+    public init(session: URLSession? = nil) {
+        self.session = session ?? Self.makeSession(timeout: 30)
     }
 
     private var baseURL: String { Self.primaryHost + Self.path }
@@ -45,21 +63,36 @@ public struct ESPNClient {
         let decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase
         decoder.dateDecodingStrategy = .iso8601
-        return try decoder.decode(T.self, from: data)
+        do {
+            return try decoder.decode(T.self, from: data)
+        } catch {
+            throw ESPNError.decoding(error)
+        }
     }
 
     /// Retries once against the secondary host when the first host refuses
-    /// (403) or fails to connect.
+    /// the request — either by throwing (unreachable / reset) or by
+    /// returning a non-2xx status (ESPN answers 403 to blocked networks, and
+    /// URLSession does not throw for HTTP status codes).
     private func fetchWithFallback(_ url: URL) async throws -> (Data, URLResponse) {
+        let alt = url.absoluteString.hasPrefix(Self.primaryHost)
+            ? URL(string: url.absoluteString.replacingOccurrences(of: Self.primaryHost, with: Self.fallbackHost))
+            : nil
+
+        let (data, response): (Data, URLResponse)
         do {
-            return try await session.data(from: url)
+            (data, response) = try await session.data(from: url)
         } catch {
-            guard url.absoluteString.hasPrefix(Self.primaryHost),
-                  let alt = URL(string: url.absoluteString.replacingOccurrences(of: Self.primaryHost, with: Self.fallbackHost)) else {
-                throw error
-            }
+            if let alt = alt { return try await session.data(from: alt) }
+            throw error
+        }
+
+        if let http = response as? HTTPURLResponse,
+           !(200..<300).contains(http.statusCode),
+           let alt = alt {
             return try await session.data(from: alt)
         }
+        return (data, response)
     }
 
     // MARK: - Endpoints

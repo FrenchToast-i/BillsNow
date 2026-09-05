@@ -60,13 +60,14 @@ final class GameViewModel: ObservableObject {
             errorMessage = nil
             SharedCache.save(fresh)
         } catch {
-            // Keep showing whatever we have; surface the error softly.
+            // Keep showing whatever we have; surface the error softly with a
+            // real description (never the generic "Unknown error").
             if game == nil { game = SharedCache.load() }
-            let error = error as? ESPNError
-            if case .noGame? = error {
+            let cast = error as? ESPNError
+            if case .noGame? = cast {
                 errorMessage = nil
             } else {
-                errorMessage = error?.errorDescription ?? error?.localizedDescription ?? "Unknown error"
+                errorMessage = cast?.errorDescription ?? error.localizedDescription
             }
         }
     }

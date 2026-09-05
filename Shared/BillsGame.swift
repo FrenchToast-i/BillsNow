@@ -169,6 +169,13 @@ public enum GameFormat {
         return f
     }()
 
+    /// Compact kickoff time for tight spots like the widget status bar.
+    public static let shortKickoff: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "MMM d • h:mm a"
+        return f
+    }()
+
     /// "Q2 8:12" for live games, absolute kickoff time for scheduled games.
     public static func clockLine(for game: BillsGame) -> String {
         switch game.state {
