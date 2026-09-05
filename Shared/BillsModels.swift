@@ -258,10 +258,12 @@ public struct TeamStatistic: Decodable {
 
 public struct PlayerBox: Decodable {
     public let team: Team?
-    public let statistics: [PlayerStatGroup]?
+    public let statistics: [PlayerStatGroupWire]?
 }
 
-public struct PlayerStatGroup: Decodable {
+/// Wire-level player stat group ("passing", "rushing", ...). Distinct from
+/// the domain `PlayerStatGroup` in BillsGame.swift.
+public struct PlayerStatGroupWire: Decodable {
     public let name: String?
     public let text: String?
     public let labels: [String]?

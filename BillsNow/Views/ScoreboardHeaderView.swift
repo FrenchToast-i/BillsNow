@@ -235,7 +235,6 @@ struct StatusPill: View {
             }
         }
         .font(.system(size: 12, weight: .black))
-        .tracking(1)
         .foregroundColor(.white)
         .padding(.horizontal, 12)
         .padding(.vertical, 5)

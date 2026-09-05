@@ -202,7 +202,11 @@ private struct WideScoreView: View {
         VStack(spacing: 0) {
             HStack(spacing: 8) {
                 StatusChip(game: game)
-                statusMeta
+                Text(statusMeta)
+                    .font(.caption2.weight(.bold))
+                    .foregroundColor(WidgetPalette.whiteDim)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
                     .frame(maxWidth: .infinity)
                 if game.isLive, let down = game.downDistanceText, !down.isEmpty {
                     Text(down)
@@ -406,7 +410,6 @@ private struct StatusChip: View {
             }
         }
         .font(.system(size: 9, weight: .black))
-        .tracking(0.8)
         .foregroundColor(WidgetPalette.white)
         .padding(.horizontal, 7)
         .padding(.vertical, 3)
