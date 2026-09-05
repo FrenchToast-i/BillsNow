@@ -65,6 +65,30 @@ public struct Competitor: Decodable {
     public let winner: Bool?
     public let record: [Record]?
     public let team: Team?
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try? c.decode(String.self, forKey: .id)
+        homeAway = try? c.decode(String.self, forKey: .homeAway)
+        winner = try? c.decode(Bool.self, forKey: .winner)
+        record = try? c.decode([Record].self, forKey: .record)
+        team = try? c.decode(Team.self, forKey: .team)
+        // The scoreboard sends a plain "29"; the schedule endpoint sends
+        // {"value": 29.0, "displayValue": "29"}. Accept both.
+        if let plain = try? c.decode(String.self, forKey: .score) {
+            score = plain
+        } else {
+            score = (try? c.decode(ScoreValue.self, forKey: .score))?.displayValue
+        }
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, homeAway, score, winner, record, team
+    }
+}
+
+private struct ScoreValue: Decodable {
+    public let displayValue: String?
 }
 
 public struct Team: Decodable {
@@ -105,9 +129,38 @@ public struct Situation: Decodable {
     public let yardsToEndzone: Int?
 }
 
+/// A broadcast entry. ESPN uses two shapes: the scoreboard sends
+/// `{ "market": "national", "names": ["NBC"] }` while the summary and
+/// schedule endpoints send `{ "market": {"type": "National"}, "media":
+/// {"shortName": "CBS"} }`. Decoded defensively so both work.
 public struct Broadcast: Decodable {
     public let market: String?
     public let names: [String]?
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        if let plain = try? c.decode(String.self, forKey: .market) {
+            market = plain
+        } else {
+            market = (try? c.decode(BroadcastMarket.self, forKey: .market))?.type
+        }
+        names = try? c.decode([String].self, forKey: .names)
+        if names?.isEmpty != false {
+            names = (try? c.decode(BroadcastMedia.self, forKey: .media))?.shortName.map { [$0] }
+        }
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case market, names, media
+    }
+}
+
+private struct BroadcastMarket: Decodable {
+    public let type: String?
+}
+
+private struct BroadcastMedia: Decodable {
+    public let shortName: String?
 }
 
 public struct Venue: Decodable {
