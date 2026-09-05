@@ -70,10 +70,11 @@ though the app targets iOS 15.
 ### No Mac? Build free with GitHub Actions (recommended)
 
 The repo ships a ready-made workflow (`.github/workflows/build.yml`) that
-compiles the app **and** the widget on GitHub's macOS machines and uploads
-the unsigned `.ipa` as a downloadable artifact. Builds are **free** — macOS
-runners are free for public repositories (private repos get ~200
-macOS-minutes/month on the free plan, which is still dozens of builds).
+compiles the app **and** the widget on GitHub's macOS machines, **ldid-signs
+both binaries** with the App Group entitlement, and uploads the finished
+`.ipa` as a downloadable artifact. Builds are **free** — macOS runners are
+free for public repositories (private repos get ~200 macOS-minutes/month on
+the free plan, which is still dozens of builds).
 
 1. Create a new GitHub repository (public = completely free).
 2. Push this project folder as the repository root:
@@ -89,10 +90,11 @@ macOS-minutes/month on the free plan, which is still dozens of builds).
 
 3. Open the **Actions** tab → **Build BillsNow** → **Run workflow** (it also
    runs automatically on every push).
-4. When the run finishes (~5 min), open it and download the **BillsNow-ipa**
-   artifact. Artifacts are kept 90 days by default.
-5. Install it with any option below — the jailbroken paths need no Mac, no
-   Apple ID, and no re-signing.
+4. When the run finishes (~5 min), open it and download the
+   **BillsNow-signed-ipa** artifact (already signed — see Option C below).
+   Artifacts are kept 90 days by default.
+5. Install it with the options below — the jailbroken paths need no Mac, no
+   Apple ID, and no terminal on the iPad.
 
 > First run may show a warning that a workflow is being set up; GitHub
 > enables Actions automatically on new repos.
@@ -124,8 +126,8 @@ The app is 100% stock iOS — no jailbreak features used — it just needs to ge
 onto a device that Apple won't sign for anymore. Pick whichever you like:
 
 **Option A — Sideloadly / AltStore (no jailbreak needed)**
-1. Grab `BillsNow.ipa` from the GitHub Actions artifact (or build it with
-   `./scripts/build-unsigned.sh` on a Mac).
+1. Grab `BillsNow-unsigned-ipa` from the GitHub Actions artifacts (or build
+   it with `./scripts/build-unsigned.sh` on a Mac).
 2. Open it in [Sideloadly](https://sideloadly.io) (Windows/Mac), log in with
    a free Apple ID, install. Free accounts must re-sign every 7 days.
    Sideloadly re-signs the embedded widget extension and app-group
@@ -133,24 +135,25 @@ onto a device that Apple won't sign for anymore. Pick whichever you like:
 
 **Option B — TrollStore (jailbroken, no re-signing)**
 TrollStore supports iOS 15.x on the iPad Air 2.
-1. Download the `BillsNow-ipa` artifact from GitHub Actions.
+1. Download the `BillsNow-unsigned-ipa` artifact from GitHub Actions.
 2. Airdrop/copy `BillsNow.ipa` to the iPad, open in Filza →
    *Share → TrollStore* (or import straight into TrollStore). It signs the
    app *and* the nested widget extension with the project entitlements.
 
-**Option C — pure Dopamine (jailbroken)**
-If you prefer keeping it inside your jailbreak:
-1. Download the `BillsNow-ipa` artifact from GitHub Actions and unzip it, or
-   grab the `BillsNow-app` artifact (an unzipped `.app` bundle).
-2. Copy `BillsNow.app` to the iPad and install via Filza, then ldid-sign
-   both binaries with the project entitlements:
+**Option C — pure Dopamine (jailbroken, zero terminal) — least work**
+1. Download the **BillsNow-signed-ipa** artifact from GitHub Actions — CI
+   already signed the app *and* the widget with ldid and the App Group
+   entitlement.
+2. Copy `BillsNow-signed.ipa` to the iPad (AirDrop / cloud / USB).
+3. Open it in Filza → **Install**. Done — no ldid, no terminal, no
+   re-signing. If the widget doesn't show up right away, reboot SpringBoard
+   once (`uicache -a` in a shell, or just restart the iPad).
 
-```bash
-# On the iPad, from the folder containing BillsNow.app (jailbroken shell):
-ldid -S BillsNow/BillsNow.entitlements "BillsNow.app/BillsNow"
-ldid -S BillsNow/BillsNow.entitlements "BillsNow.app/PlugIns/BillsWidget.appex"
-uicache -p /path/to/BillsNow.app      # then reboot SpringBoard or uicache -a
-```
+(Only if you used the *unsigned* artifact instead: install the extracted
+`BillsNow.app` with Filza, then in a jailbroken shell run
+`ldid -S BillsNow/BillsNow.entitlements "BillsNow.app/BillsNow"`,
+`ldid -S BillsNow/BillsNow.entitlements "BillsNow.app/PlugIns/BillsWidget.appex"`
+and `uicache -a`.)
 
 **After installing (all options):** add the widget by long-pressing the home
 screen → *+* → search "Bills" → pick a size. Give the widget a few seconds on

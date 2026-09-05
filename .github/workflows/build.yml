@@ -36,16 +36,19 @@ jobs:
       - name: Build app + widget (unsigned)
         run: ./scripts/build-unsigned.sh
 
-      - name: Upload .ipa artifact
+      - name: Sign with ldid (for jailbroken install)
+        run: ./scripts/sign-with-ldid.sh
+
+      - name: Upload signed .ipa (install with Filza, no re-signing)
         uses: actions/upload-artifact@v4
         with:
-          name: BillsNow-ipa
-          path: build/BillsNow.ipa
+          name: BillsNow-signed-ipa
+          path: build/BillsNow-signed.ipa
           if-no-files-found: error
 
-      - name: Upload .app bundle (for Filza/ldid install path)
+      - name: Upload unsigned .ipa (for Sideloadly / TrollStore)
         uses: actions/upload-artifact@v4
         with:
-          name: BillsNow-app
-          path: build/Build/Products/Release-iphoneos/BillsNow.app
+          name: BillsNow-unsigned-ipa
+          path: build/BillsNow.ipa
           if-no-files-found: error
