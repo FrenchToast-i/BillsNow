@@ -1,0 +1,17 @@
+# Build output
+build/
+build-signed/
+DerivedData/
+
+# Xcode user state
+xcuserdata/
+*.xcuserstate
+*.xcscmblueprint
+*.xccheckout
+
+# macOS junk
+.DS_Store
+
+# Python (icon generator)
+__pycache__/
+*.pyc
