@@ -36,6 +36,14 @@ jobs:
       - name: Build app + widget (unsigned)
         run: ./scripts/build-unsigned.sh
 
+      - name: Decode self-test against live ESPN data
+        run: |
+          rm -rf scripts/decode-check/Sources
+          mkdir -p scripts/decode-check/Sources
+          cp Shared/*.swift scripts/decode-check/Sources/
+          cp scripts/decode-check/main.swift scripts/decode-check/Sources/
+          cd scripts/decode-check && swift run DecodeCheck
+
       - name: Sign with ldid (for jailbroken install)
         run: ./scripts/sign-with-ldid.sh
 

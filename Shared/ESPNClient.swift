@@ -56,18 +56,46 @@ public struct ESPNClient {
         if !query.isEmpty { components.queryItems = query }
         guard let url = components.url else { throw ESPNError.badURL }
 
-        let (data, response) = try await fetchWithFallback(url)
-        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
-            throw ESPNError.http((response as? HTTPURLResponse)?.statusCode ?? -1)
-        }
-        let decoder = JSONDecoder()
-        decoder.keyDecodingStrategy = .convertFromSnakeCase
-        decoder.dateDecodingStrategy = .iso8601
+        let decoder = Self.makeDecoder()
+
+        // The host fallback covers connection errors and non-2xx statuses.
+        // A 200 response that isn't the expected JSON (some networks/WAFs
+        // answer 200 with a block page) is caught here and retried against
+        // the alternate host.
         do {
+            let (data, _) = try await fetchWithFallback(url)
             return try decoder.decode(T.self, from: data)
-        } catch {
-            throw ESPNError.decoding(error)
+        } catch let firstError as DecodingError {
+            guard let alt = Self.fallbackURL(for: url) else {
+                throw ESPNError.decoding(endpoint: path, error: firstError)
+            }
+            let (altData, altResponse) = try await session.data(from: alt)
+            if let http = altResponse as? HTTPURLResponse,
+               !(200..<300).contains(http.statusCode) {
+                throw ESPNError.http(http.statusCode)
+            }
+            do {
+                return try decoder.decode(T.self, from: altData)
+            } catch let altError as DecodingError {
+                throw ESPNError.decoding(endpoint: path, error: altError)
+            } catch {
+                throw ESPNError.decoding(endpoint: path, error: error)
+            }
         }
+    }
+
+    /// The ESPN JSON is already camelCase and every property name matches
+    /// the wire keys exactly, so no key-mangling strategy is used (a
+    /// snake-case strategy can silently drop camelCase keys).
+    private static func makeDecoder() -> JSONDecoder {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        return decoder
+    }
+
+    private static func fallbackURL(for url: URL) -> URL? {
+        guard url.absoluteString.hasPrefix(primaryHost) else { return nil }
+        return URL(string: url.absoluteString.replacingOccurrences(of: primaryHost, with: fallbackHost))
     }
 
     /// Retries once against the secondary host when the first host refuses
@@ -75,9 +103,7 @@ public struct ESPNClient {
     /// returning a non-2xx status (ESPN answers 403 to blocked networks, and
     /// URLSession does not throw for HTTP status codes).
     private func fetchWithFallback(_ url: URL) async throws -> (Data, URLResponse) {
-        let alt = url.absoluteString.hasPrefix(Self.primaryHost)
-            ? URL(string: url.absoluteString.replacingOccurrences(of: Self.primaryHost, with: Self.fallbackHost))
-            : nil
+        let alt = Self.fallbackURL(for: url)
 
         let (data, response): (Data, URLResponse)
         do {
@@ -117,6 +143,19 @@ public struct ESPNClient {
         let year = cal.component(.year, from: date)
         let month = cal.component(.month, from: date)
         return month <= 2 ? year - 1 : year
+    }
+
+    /// End-to-end decode self-test used by CI: fetches and decodes the real
+    /// scoreboard / schedule / summary exactly like the app does, so a change
+    /// in ESPN's data shape fails the build instead of the app on-device.
+    public static func selfTest() async throws -> String {
+        let client = ESPNClient(session: makeSession(timeout: 15))
+        do {
+            let game = try await client.fetchBillsGame()
+            return "OK — \(game.scoreline) [\(game.state.rawValue)] \(game.statusDetail)"
+        } catch ESPNError.noGame {
+            return "OK — no Bills game scheduled right now"
+        }
     }
 
     /// Finds the Bills game worth showing: the live one if any, else the next
@@ -194,14 +233,37 @@ public enum ESPNError: LocalizedError {
     case badURL
     case http(Int)
     case noGame
-    case decoding(Error)
+    case decoding(endpoint: String, error: Error)
 
     public var errorDescription: String? {
         switch self {
         case .badURL: return "Could not build the request URL."
         case .http(let code): return "The stats server responded with error \(code)."
         case .noGame: return "No Bills game found right now."
-        case .decoding(let error): return "Could not read the stats response: \(error.localizedDescription)"
+        case .decoding(let endpoint, let error):
+            return "Could not read the \(endpoint) stats response: \(Self.describeDecoding(error))"
         }
+    }
+
+    private static func describeDecoding(_ error: Error) -> String {
+        guard let decoding = error as? DecodingError else {
+            return error.localizedDescription
+        }
+        switch decoding {
+        case .typeMismatch(let type, let context):
+            return "expected \(type) at '\(Self.codingPath(context.codingPath))' but found different data"
+        case .valueNotFound(let type, let context):
+            return "missing \(type) at '\(Self.codingPath(context.codingPath))'"
+        case .keyNotFound(let key, let context):
+            return "missing key '\(key.stringValue)' at '\(Self.codingPath(context.codingPath))'"
+        case .dataCorrupted(let context):
+            return "bad data at '\(Self.codingPath(context.codingPath))': \(context.debugDescription)"
+        @unknown default:
+            return decoding.localizedDescription
+        }
+    }
+
+    private static func codingPath(_ path: [CodingKey]) -> String {
+        path.map { $0.stringValue }.joined(separator: ".")
     }
 }
