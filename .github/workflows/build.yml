@@ -47,5 +47,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: BillsNow-app
-          path: build/BillsNow.app
+          path: build/Build/Products/Release-iphoneos/BillsNow.app
           if-no-files-found: error
